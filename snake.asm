@@ -1,6 +1,7 @@
 ; snake game
 ; assembly 8086
 ; written by Leonardo Ono (ono.leo@gmail.com)
+; improved by Michael Kokorev (kokorev@012.net.il)
 ;
 ; target OS: DOS (.COM file extension)
 ; use: nasm snake.asm -o snake.com -f bin
@@ -58,7 +59,9 @@ section .text
 		.next:	
 			mov byte [buffer + bx], ' '
 			inc bx
-			cmp bx, 2000
+			mov byte [buffer + bx], 01011111b
+			inc bx
+			cmp bx, 4000
 			jnz .next
 			ret
 		
@@ -68,11 +71,14 @@ section .text
 	;	dl = row
 	buffer_write:
 		mov di, buffer
-		mov al, 80
+		mov al, 160
 		mul dl
+		add ax, cx
 		add ax, cx
 		add di, ax
 		mov byte [di], bl
+		inc di
+		mov byte [di], 01011111b
 		ret
 	
 	; in:
@@ -82,14 +88,16 @@ section .text
 	;	bl = char
 	buffer_read:
 		mov di, buffer
-		mov al, 80
+		mov al, 160
 		mul dl
+		add ax, cx
 		add ax, cx
 		add di, ax
 		mov bl, [di]
 		ret
 	
 	; in:
+	;	ah = color
 	;	si = string address
 	;	di = buffer destination offset
 	buffer_print_string:
@@ -98,6 +106,8 @@ section .text
 			cmp al, 0
 			jz .end
 			mov byte [buffer + di], al
+			inc di
+			mov byte [buffer + di], ah
 			inc di
 			inc si
 			jmp .next
@@ -129,8 +139,12 @@ section .text
 			mov bl, 219
 		.write:
 			mov byte [es:si], bl
+			inc si
 			inc di
-			add si, 2
+			mov bl, [di]
+			mov byte [es:si], bl
+			inc di
+			inc si
 			cmp si, 4000
 			jnz .next
 			ret
@@ -143,7 +157,10 @@ section .text
 			mov si, 0
 		.next:
 			mov bx, [.title + si]
+			shl bx, 1
 			mov byte [buffer + bx], 219
+			inc bx
+			mov byte [buffer + bx], 01010000b
 			push si
 			call buffer_render
 			mov si, 1
@@ -154,14 +171,25 @@ section .text
 			jl .next
 			mov si, .text_1
 			mov di, 1626
+			shl di, 1
+			mov ah, 01011111b
+			call buffer_print_string
+			mov si, .text_1_1
+			mov di, 1706
+			shl di, 1
+			mov ah, 01011111b
 			call buffer_print_string
 			mov si, .text_2
-			mov di, 1781
+			mov di, 1941
+			shl di, 1
+			mov ah, 01011111b
 			call buffer_print_string
 			call clear_keyboard_buffer
 		.wait_for_key:
-			mov si, .text_4
+			mov si, . text_4
 			mov di, 1388
+			shl di, 1
+			mov ah, 01011111b
 			call buffer_print_string
 			call buffer_render
 			mov si, 5
@@ -171,6 +199,8 @@ section .text
 			jnz .continue
 			mov si, .text_3
 			mov di, 1388
+			shl di, 1
+			mov ah, 01011111b
 			call buffer_print_string
 			call buffer_render
 			mov si, 10
@@ -199,6 +229,8 @@ section .text
 			dw 0696, 0697, 0698, 0699, 0700, 0701, 0702
 		.text_1:
 			db "DEVELOPED BY O.L. (C) 2017", 0
+		.text_1_1:
+			db "IMPROVED BY M.K. (C) 2020", 0
 		.text_2:
 			db "WRITTEN IN ASSEMBLY 8086 LANGUAGE :)", 0
 		.text_3:
@@ -209,9 +241,11 @@ section .text
 	print_score:
 			mov si, .text
 			mov di, 0
+			mov ah, 01011111b
 			call buffer_print_string
 			mov ax, [score]
 			mov di, 13
+			shl di, 1
 		.next_digit:
 			xor dx, dx
 			mov bx, 10
@@ -221,6 +255,7 @@ section .text
 			add al, 48
 			mov byte [buffer + di], al
 			pop ax
+			dec di
 			dec di
 			cmp ax, 0
 			jnz .next_digit
@@ -439,34 +474,41 @@ section .text
 			mov di, 0
 		.next_x:
 			mov byte [buffer + di], 255
-			mov byte [buffer + 80 + di], 196
-			mov byte [buffer + 1920 + di], 196
+			mov byte [buffer + 160 + di], 196
+			mov byte [buffer + 3840 + di], 196
 			inc di
-			cmp di, 80
+			inc di
+			cmp di, 160
 			jnz .next_x
 			mov di, 0
 		.next_y:
-			mov byte [buffer + 80 + di], 179
-			mov byte [buffer + 159 + di], 179
-			add di,80
-			cmp di, 2000
+			mov byte [buffer + 160 + di], 179
+			mov byte [buffer + 318 + di], 179
+			add di,160
+			cmp di, 4000
 			jnz .next_y
 		.corners:
-			mov byte [buffer + 80], 218
-			mov byte [buffer + 159], 191
-			mov byte [buffer + 1920], 192
-			mov byte [buffer + 1999], 217
+			mov byte [buffer + 160], 218
+			mov byte [buffer + 318], 191
+			mov byte [buffer + 3840], 192
+			mov byte [buffer + 3998], 217
 			ret
 		
 	show_game_over:
 			mov si, .text_1
 			mov di, 880 + 32
+			shl di, 1
+			mov ah, 11110000b
 			call buffer_print_string
 			mov si, .text_2
 			mov di, 960 + 32
+			shl di, 1
+			mov ah, 11110000b
 			call buffer_print_string
 			mov si, .text_1
 			mov di, 1040 + 32
+			shl di, 1
+			mov ah, 11110000b
 			call buffer_print_string
 			call buffer_render
 			mov si, 48
@@ -499,5 +541,4 @@ section .bss
 		snake_tail_previous_x resb 1
 		snake_tail_previous_y resb 1
 
-		buffer resb 2000
-
+		buffer resb 4000
